@@ -1,5 +1,5 @@
 import io
-import urllib
+import urllib.request
 
 
 def image_to_bytes(img):
