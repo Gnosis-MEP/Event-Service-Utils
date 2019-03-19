@@ -71,7 +71,7 @@ class ImageFileUploadedCloudStorageEventGenerator(BaseEventGenerator, MinioMixin
         self.initialize_file_storage_client()
         self.imgs_dir = imgs_dir
         BaseEventGenerator.__init__(
-            source=source, event_schema=EventImageURLMessage)
+            self, source=source, event_schema=EventImageURLMessage)
         self._create_bucket_for_publisher()
         if self.loop:
             self.imgs_loop = list(os.walk(self.imgs_dir))[0][2]
@@ -100,13 +100,15 @@ class ImageFileUploadedCloudStorageEventGenerator(BaseEventGenerator, MinioMixin
         return os.path.join(self.imgs_dir, img_name)
 
 
-class ImageUploadFromMpeg4EventGenerator(BaseEventGenerator):
+class ImageUploadFromMpeg4EventGenerator(BaseEventGenerator, MinioMixing):
     def __init__(self, file_storage_cli_config, media_source, source):
         self.file_storage_cli_config = file_storage_cli_config
         self.initialize_file_storage_client()
         self.media_source = media_source
         self.reader = imageio.get_reader(media_source)  # <video0> for webcam
-        super(ImageUploadFromMpeg4EventGenerator, self).__init__(source=source, event_schema=EventImageURLMessage)
+
+        BaseEventGenerator.__init__(
+            self, source=source, event_schema=EventImageURLMessage)
         self._create_bucket_for_publisher()
 
     def initialize_file_storage_client(self):
