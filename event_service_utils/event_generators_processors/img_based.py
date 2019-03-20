@@ -9,7 +9,7 @@ from minio import Minio
 from minio.error import (ResponseError, BucketAlreadyOwnedByYou,
                          BucketAlreadyExists)
 
-from event_service_utils.schemas.events import EventImageURLMessage
+from event_service_utils.schemas.events import EventVEkgMessage
 from event_service_utils.event_generators_processors.base import BaseEventProcessor, BaseEventGenerator
 from event_service_utils.img_serialization.base import image_to_bytes_io_and_size
 from event_service_utils.img_serialization.pil import load_img_from_url
@@ -71,7 +71,7 @@ class ImageFileUploadedCloudStorageEventGenerator(BaseEventGenerator, MinioMixin
         self.initialize_file_storage_client()
         self.imgs_dir = imgs_dir
         BaseEventGenerator.__init__(
-            self, source=source, event_schema=EventImageURLMessage)
+            self, source=source, event_schema=EventVEkgMessage)
         self._create_bucket_for_publisher()
         if self.loop:
             self.imgs_loop = list(os.walk(self.imgs_dir))[0][2]
@@ -92,8 +92,8 @@ class ImageFileUploadedCloudStorageEventGenerator(BaseEventGenerator, MinioMixin
         img_path = self.get_image_path(img_id)
         obj_data = self.upload_file_to_storage(img_path)
         img_url = obj_data
-
-        schema = self.event_schema(image_url=img_url, source=self.source)
+        event_id = f'{self.source}-{str(uuid.uuid4())}'
+        schema = self.event_schema(id=event_id, vekg=(), image_url=img_url, source=self.source)
         return schema.json_msg_load_from_dict()
 
     def get_image_path(self, img_name):
@@ -108,7 +108,7 @@ class ImageUploadFromMpeg4EventGenerator(BaseEventGenerator, MinioMixing):
         self.reader = imageio.get_reader(media_source)  # <video0> for webcam
 
         BaseEventGenerator.__init__(
-            self, source=source, event_schema=EventImageURLMessage)
+            self, source=source, event_schema=EventVEkgMessage)
         self._create_bucket_for_publisher()
 
     def initialize_file_storage_client(self):
@@ -127,10 +127,11 @@ class ImageUploadFromMpeg4EventGenerator(BaseEventGenerator, MinioMixing):
             frame = self.reader.get_next_data()
         pil_img = Image.fromarray(frame)
 
+        event_id = f'{self.source}-{str(uuid.uuid4())}'
         obj_data = self.upload_inmemory_to_storage(pil_img)
 
         img_url = obj_data
-        schema = self.event_schema(image_url=img_url, source=self.source)
+        schema = self.event_schema(id=event_id, vekg=(), image_url=img_url, source=self.source)
         return schema.json_msg_load_from_dict()
 
 
@@ -138,7 +139,7 @@ class Mpeg4FromImageURLEventProcessor(BaseEventProcessor):
 
     def __init__(self, video_player):
         self.video_player = video_player
-        super(Mpeg4FromImageURLEventProcessor, self).__init__(event_schema=EventImageURLMessage)
+        super(Mpeg4FromImageURLEventProcessor, self).__init__(event_schema=EventVEkgMessage)
 
     def process(self, event_tuple):
         event_id, json_msg = event_tuple

@@ -102,3 +102,28 @@ class EventImageURLMessage(BaseEventMessage):
 
         super(EventImageURLMessage, self).json_msg_load_from_dict()
         return self.json_serialized
+
+
+class EventVEkgMessage(EventImageURLMessage):
+
+    def __init__(self, id=None, image_url=None, source=None, destinations=None, vekg=None, json_msg=None):
+        super(EventVEkgMessage, self).__init__(
+            id=id, image_url=image_url, source=source, destinations=destinations, json_msg=json_msg)
+
+        self.dict.update({
+            'vekg': vekg,
+        })
+
+    def object_load_from_msg(self):
+        super(EventVEkgMessage, self).object_load_from_msg()
+        if self.dict['vekg'] is None:
+            self.dict['vekg'] = ()
+
+        return self.dict
+
+    def json_msg_load_from_dict(self):
+        if self.dict['vekg'] is None:
+            self.dict['vekg'] = ()
+
+        super(EventVEkgMessage, self).json_msg_load_from_dict()
+        return self.json_serialized
