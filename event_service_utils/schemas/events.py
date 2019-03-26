@@ -117,13 +117,13 @@ class EventVEkgMessage(EventImageURLMessage):
     def object_load_from_msg(self):
         super(EventVEkgMessage, self).object_load_from_msg()
         if self.dict['vekg'] is None:
-            self.dict['vekg'] = ()
+            self.dict['vekg'] = {}
 
         return self.dict
 
     def json_msg_load_from_dict(self):
         if self.dict['vekg'] is None:
-            self.dict['vekg'] = ()
+            self.dict['vekg'] = {}
 
         super(EventVEkgMessage, self).json_msg_load_from_dict()
         return self.json_serialized

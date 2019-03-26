@@ -93,7 +93,7 @@ class ImageFileUploadedCloudStorageEventGenerator(BaseEventGenerator, MinioMixin
         obj_data = self.upload_file_to_storage(img_path)
         img_url = obj_data
         event_id = f'{self.source}-{str(uuid.uuid4())}'
-        schema = self.event_schema(id=event_id, vekg=(), image_url=img_url, source=self.source)
+        schema = self.event_schema(id=event_id, vekg={}, image_url=img_url, source=self.source)
         return schema.json_msg_load_from_dict()
 
     def get_image_path(self, img_name):
@@ -131,7 +131,7 @@ class ImageUploadFromMpeg4EventGenerator(BaseEventGenerator, MinioMixing):
         obj_data = self.upload_inmemory_to_storage(pil_img)
 
         img_url = obj_data
-        schema = self.event_schema(id=event_id, vekg=(), image_url=img_url, source=self.source)
+        schema = self.event_schema(id=event_id, vekg={}, image_url=img_url, source=self.source)
         return schema.json_msg_load_from_dict()
 
 
