@@ -17,7 +17,7 @@ test_requirements = [
 ]
 setup(
     name='event_service_utils',
-    version='0.1.3',
+    version='0.1.4',
     description="Event service utils",
     long_description=readme,
     author="Felipe Arruda Pontes",
