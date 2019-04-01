@@ -56,18 +56,18 @@ class EventDispatcherUpdatePublisherMessage(BaseInternalMessage):
 
 
 class MatchingEngineUpdateSubscriberMessage(BaseInternalMessage):
-    def __init__(self, uid=None, action=None, sub_id=None, filters=None, json_msg=None):
+    def __init__(self, uid=None, action=None, sub_id=None, subscription=None, json_msg=None):
         super(MatchingEngineUpdateSubscriberMessage, self).__init__(action=action, json_msg=json_msg)
         self.dict.update({
             'uid': uid,
             'sub_id': sub_id,
-            'filters': filters
+            'subscription': subscription
         })
 
 
-class ProcessorManagerAvailableFiltersMessage(BaseInternalMessage):
-    def __init__(self, available_filters=None, action=None, json_msg=None):
-        super(ProcessorManagerAvailableFiltersMessage, self).__init__(action=action, json_msg=json_msg)
+class ProcessorManagerAvailableProcessorsMessage(BaseInternalMessage):
+    def __init__(self, available_processors=None, action=None, json_msg=None):
+        super(ProcessorManagerAvailableProcessorsMessage, self).__init__(action=action, json_msg=json_msg)
         self.dict.update({
-            'available_filters': available_filters
+            'available_processors': available_processors
         })
