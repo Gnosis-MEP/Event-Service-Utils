@@ -127,3 +127,42 @@ class EventVEkgMessage(EventImageURLMessage):
 
         super(EventVEkgMessage, self).json_msg_load_from_dict()
         return self.json_serialized
+
+
+class EventWindowMessage(BaseEventMessage):
+
+    def __init__(self, id=None, event_img_urls=None, sub_id=None, query=None, vekg_stream=None,
+                 source=None, destinations=None, json_msg=None):
+        super(EventWindowMessage, self).__init__(
+            id=id, source=source, destinations=destinations, json_msg=json_msg)
+
+        self.dict.update({
+            'sub_id': sub_id,
+            'event_img_urls': event_img_urls,
+            'query': query,
+            'vekg_stream': vekg_stream,
+            'source': source,
+            'destinations': destinations,
+        })
+
+    def object_load_from_msg(self):
+        super(EventWindowMessage, self).object_load_from_msg()
+        if self.dict['event_img_urls'] is None:
+            self.dict['event_img_urls'] = []
+        if self.dict['vekg_stream'] is None:
+            self.dict['vekg_stream'] = []
+        if self.dict['query'] is None:
+            self.dict['query'] = {}
+
+        return self.dict
+
+    def json_msg_load_from_dict(self):
+        if self.dict['event_img_urls'] is None:
+            self.dict['event_img_urls'] = []
+        if self.dict['vekg_stream'] is None:
+            self.dict['vekg_stream'] = []
+        if self.dict['query'] is None:
+            self.dict['query'] = {}
+
+        super(EventWindowMessage, self).json_msg_load_from_dict()
+        return self.json_serialized

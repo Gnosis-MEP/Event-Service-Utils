@@ -4,15 +4,17 @@ import time
 import uuid
 
 from PIL import Image
+
 import imageio
 from minio import Minio
 from minio.error import (ResponseError, BucketAlreadyOwnedByYou,
                          BucketAlreadyExists)
+import redis
 
-from event_service_utils.schemas.events import EventVEkgMessage
+from event_service_utils.schemas.events import EventVEkgMessage, EventWindowMessage
 from event_service_utils.event_generators_processors.base import BaseEventProcessor, BaseEventGenerator
-from event_service_utils.img_serialization.base import image_to_bytes_io_and_size
-from event_service_utils.img_serialization.pil import load_img_from_url
+from event_service_utils.img_serialization.base import image_to_bytes_io_and_size, image_to_bytes
+from event_service_utils.img_serialization.pil import load_img_from_url, image_from_bytes, load_img_from_file
 from event_service_utils.img_serialization.cv2 import cv2_from_pil_image
 
 
@@ -61,6 +63,115 @@ class MinioMixing():
         except ResponseError as err:
             raise err
         return ret
+
+
+class RedisImageCache():
+    def initialize_file_storage_client(self):
+        self.client = redis.StrictRedis(**self.file_storage_cli_config)
+
+    def upload_inmemory_to_storage(self, pil_img):
+        img_key = str(uuid.uuid4())
+        bytes_io = image_to_bytes(pil_img)
+
+        expiration_time = datetime.timedelta(minutes=10)
+
+        ret = self.client.set(img_key, bytes_io)
+        if ret:
+            self.client.expire(img_key, expiration_time.total_seconds())
+        else:
+            raise Exception('Couldnt set image in redis')
+        # try:
+        #     ret = self.fs_client.put_object(
+        #         bucket_name=self.source,
+        #         object_name=img_name,
+        #         length=length,
+        #         data=bytes_io,
+        #         content_type='image/jpeg'
+        #     )
+        #     ret = self.fs_client.presigned_get_object(self.source, img_name, expires=expiration_time)
+        # except ResponseError as err:
+        #     raise err
+
+        # img = load_img_from_file('panda.jpg') #PIL img
+        # bytes_io = image_to_bytes(img)
+
+        # img_back.show()
+        return img_key
+
+    def get_image_by_key(self, img_key):
+
+        bytes_io = self.client.get(img_key)
+        if not bytes_io:
+            return None
+        img = image_from_bytes(bytes_io)
+        return img
+
+
+class ImageRedisCacheEventGenerator(BaseEventGenerator, RedisImageCache):
+
+    def __init__(self, loop, file_storage_cli_config, imgs_dir, source):
+        self.loop = loop
+        self.file_storage_cli_config = file_storage_cli_config
+        self.initialize_file_storage_client()
+        self.imgs_dir = imgs_dir
+        BaseEventGenerator.__init__(
+            self, source=source, event_schema=EventVEkgMessage)
+        if self.loop:
+            self.imgs_loop = list(os.walk(self.imgs_dir))[0][2]
+            self.last_id = -1
+
+    def get_next_image_id(self):
+        if self.loop:
+            self.last_id += 1
+            if self.last_id >= len(self.imgs_loop):
+                self.last_id = 0
+            time.sleep(0.4)
+            return self.imgs_loop[self.last_id]
+        else:
+            return input(f'Next image name ({self.imgs_dir}/): ')
+
+    def next_event(self):
+        img_id = self.get_next_image_id()
+        img_path = self.get_image_path(img_id)
+        img = load_img_from_file(img_path)
+        obj_data = self.upload_inmemory_to_storage(img)
+        img_url = obj_data
+        event_id = f'{self.source}-{str(uuid.uuid4())}'
+        schema = self.event_schema(id=event_id, vekg={}, image_url=img_url, source=self.source)
+        return schema.json_msg_load_from_dict()
+
+    def get_image_path(self, img_name):
+        return os.path.join(self.imgs_dir, img_name)
+
+
+class ImageRedisCacheFromMpeg4EventGenerator(BaseEventGenerator, RedisImageCache):
+    def __init__(self, file_storage_cli_config, media_source, source):
+        self.file_storage_cli_config = file_storage_cli_config
+        self.initialize_file_storage_client()
+        self.media_source = media_source
+        self.reader = imageio.get_reader(media_source)  # <video0> for webcam
+
+        BaseEventGenerator.__init__(
+            self, source=source, event_schema=EventVEkgMessage)
+
+    def next_event(self):
+        # time.sleep(0.4)
+        print('new frame')
+        try:
+            frame = self.reader.get_next_data()
+        except imageio.core.format.CannotReadFrameError as e:
+            del self.reader
+            self.reader = imageio.get_reader(self.media_source)
+            print('reseting video...')
+            frame = self.reader.get_next_data()
+        pil_img = Image.fromarray(frame)
+
+        event_id = f'{self.source}-{str(uuid.uuid4())}'
+        obj_data = self.upload_inmemory_to_storage(pil_img)
+
+        img_url = obj_data
+        schema = self.event_schema(id=event_id, vekg={}, image_url=img_url, source=self.source)
+        return schema.json_msg_load_from_dict()
 
 
 class ImageFileUploadedCloudStorageEventGenerator(BaseEventGenerator, MinioMixing):
@@ -117,7 +228,8 @@ class ImageUploadFromMpeg4EventGenerator(BaseEventGenerator, MinioMixing):
         )
 
     def next_event(self):
-        time.sleep(0.4)
+        # time.sleep(0.4)
+        print('new frame')
         try:
             frame = self.reader.get_next_data()
         except imageio.core.format.CannotReadFrameError as e:
@@ -133,6 +245,23 @@ class ImageUploadFromMpeg4EventGenerator(BaseEventGenerator, MinioMixing):
         img_url = obj_data
         schema = self.event_schema(id=event_id, vekg={}, image_url=img_url, source=self.source)
         return schema.json_msg_load_from_dict()
+
+
+class Mpeg4FromRedisCacheWindowEventProcessor(BaseEventProcessor):
+
+    def __init__(self, video_player):
+        self.video_player = video_player
+        super(Mpeg4FromRedisCacheWindowEventProcessor, self).__init__(event_schema=EventWindowMessage)
+
+    def process(self, event_tuple):
+        event_id, json_msg = event_tuple
+        event_schema = self.event_schema(json_msg=json_msg)
+        event_data = event_schema.object_load_from_msg()
+        img_url = event_data.get('image_url')
+        frame = load_img_from_url(img_url)
+        cv2_img = cv2_from_pil_image(frame)
+        fps = 30
+        self.video_player.play_next(cv2_img, fps)
 
 
 class Mpeg4FromImageURLEventProcessor(BaseEventProcessor):
