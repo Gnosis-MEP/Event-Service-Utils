@@ -9,13 +9,13 @@ import imageio
 from minio import Minio
 from minio.error import (ResponseError, BucketAlreadyOwnedByYou,
                          BucketAlreadyExists)
-import redis
 
 from event_service_utils.schemas.events import EventVEkgMessage, EventWindowMessage
 from event_service_utils.event_generators_processors.base import BaseEventProcessor, BaseEventGenerator
-from event_service_utils.img_serialization.base import image_to_bytes_io_and_size, image_to_bytes
-from event_service_utils.img_serialization.pil import load_img_from_url, image_from_bytes, load_img_from_file
+from event_service_utils.img_serialization.base import image_to_bytes_io_and_size
+from event_service_utils.img_serialization.pil import load_img_from_url, load_img_from_file
 from event_service_utils.img_serialization.cv2 import cv2_from_pil_image
+from event_service_utils.img_serialization.redis import RedisImageCache
 
 
 class MinioMixing():
@@ -63,48 +63,6 @@ class MinioMixing():
         except ResponseError as err:
             raise err
         return ret
-
-
-class RedisImageCache():
-    def initialize_file_storage_client(self):
-        self.client = redis.StrictRedis(**self.file_storage_cli_config)
-
-    def upload_inmemory_to_storage(self, pil_img):
-        img_key = str(uuid.uuid4())
-        bytes_io = image_to_bytes(pil_img)
-
-        expiration_time = datetime.timedelta(minutes=10)
-
-        ret = self.client.set(img_key, bytes_io)
-        if ret:
-            self.client.expire(img_key, expiration_time.total_seconds())
-        else:
-            raise Exception('Couldnt set image in redis')
-        # try:
-        #     ret = self.fs_client.put_object(
-        #         bucket_name=self.source,
-        #         object_name=img_name,
-        #         length=length,
-        #         data=bytes_io,
-        #         content_type='image/jpeg'
-        #     )
-        #     ret = self.fs_client.presigned_get_object(self.source, img_name, expires=expiration_time)
-        # except ResponseError as err:
-        #     raise err
-
-        # img = load_img_from_file('panda.jpg') #PIL img
-        # bytes_io = image_to_bytes(img)
-
-        # img_back.show()
-        return img_key
-
-    def get_image_by_key(self, img_key):
-
-        bytes_io = self.client.get(img_key)
-        if not bytes_io:
-            return None
-        img = image_from_bytes(bytes_io)
-        return img
 
 
 class ImageRedisCacheEventGenerator(BaseEventGenerator, RedisImageCache):
@@ -247,9 +205,11 @@ class ImageUploadFromMpeg4EventGenerator(BaseEventGenerator, MinioMixing):
         return schema.json_msg_load_from_dict()
 
 
-class Mpeg4FromRedisCacheWindowEventProcessor(BaseEventProcessor):
+class Mpeg4FromRedisCacheWindowEventProcessor(BaseEventProcessor, RedisImageCache):
 
-    def __init__(self, video_player):
+    def __init__(self, video_player, file_storage_cli_config):
+        self.file_storage_cli_config = file_storage_cli_config
+        self.initialize_file_storage_client()
         self.video_player = video_player
         super(Mpeg4FromRedisCacheWindowEventProcessor, self).__init__(event_schema=EventWindowMessage)
 
@@ -257,11 +217,12 @@ class Mpeg4FromRedisCacheWindowEventProcessor(BaseEventProcessor):
         event_id, json_msg = event_tuple
         event_schema = self.event_schema(json_msg=json_msg)
         event_data = event_schema.object_load_from_msg()
-        img_url = event_data.get('image_url')
-        frame = load_img_from_url(img_url)
-        cv2_img = cv2_from_pil_image(frame)
-        fps = 30
-        self.video_player.play_next(cv2_img, fps)
+        for img_key in event_data.get('event_img_urls', []):
+            frame = self.get_image_by_key(img_key)
+            if frame:
+                cv2_img = cv2_from_pil_image(frame)
+                fps = 30
+                self.video_player.play_next(cv2_img, fps)
 
 
 class Mpeg4FromImageURLEventProcessor(BaseEventProcessor):
