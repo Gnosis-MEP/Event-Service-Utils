@@ -113,7 +113,7 @@ class ImageRedisCacheFromMpeg4EventGenerator(BaseEventGenerator, RedisImageCache
             self, source=source, event_schema=EventVEkgMessage)
 
     def next_event(self):
-        # time.sleep(0.4)
+        time.sleep(0.38)
         print('new frame')
         try:
             frame = self.reader.get_next_data()
@@ -221,7 +221,7 @@ class Mpeg4FromRedisCacheWindowEventProcessor(BaseEventProcessor, RedisImageCach
             frame = self.get_image_by_key(img_key)
             if frame:
                 cv2_img = cv2_from_pil_image(frame)
-                fps = 0.1
+                fps = 0.38
                 self.video_player.play_next(cv2_img, fps)
 
 
