@@ -221,7 +221,7 @@ class Mpeg4FromRedisCacheWindowEventProcessor(BaseEventProcessor, RedisImageCach
             frame = self.get_image_by_key(img_key)
             if frame:
                 cv2_img = cv2_from_pil_image(frame)
-                fps = 30
+                fps = 0.1
                 self.video_player.play_next(cv2_img, fps)
 
 
