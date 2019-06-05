@@ -4,8 +4,9 @@ from .base import BasicStream, StreamFactory
 
 
 class RedisStreamAndConsumer(BasicStream):
-    def __init__(self, redis_db, key, max_stream_length=10):
+    def __init__(self, redis_db, key, max_stream_length=10, block=0):
         BasicStream.__init__(self, key)
+        self.block = block
         self.redis_db = redis_db
         self.output_stream = self._get_stream(key)
         self.input_consumer_group = self._get_single_stream_consumer_group(key)
@@ -19,7 +20,7 @@ class RedisStreamAndConsumer(BasicStream):
         return consumer_group
 
     def read_events(self, count=1):
-        streams_events_list = self.input_consumer_group.read(count=count)
+        streams_events_list = self.input_consumer_group.read(count=count, block=self.block)
         for stream_id, event_list in streams_events_list:
             yield from event_list
 
@@ -33,8 +34,9 @@ class RedisStreamAndConsumer(BasicStream):
 
 
 class RedisStreamOnly(BasicStream):
-    def __init__(self, redis_db, key, max_stream_length=10):
+    def __init__(self, redis_db, key, max_stream_length=10, block=0):
         BasicStream.__init__(self, key)
+        self.block = block
         self.redis_db = redis_db
         self.single_io_stream = self._get_stream(key)
         self.single_io_stream.read(count=10)
@@ -45,7 +47,7 @@ class RedisStreamOnly(BasicStream):
         self.max_stream_length = max_stream_length
 
     def read_events(self, count=1):
-        events_list = self.single_io_stream.read(count=count, last_id=self.last_msg_id)
+        events_list = self.single_io_stream.read(count=count, last_id=self.last_msg_id, block=self.block)
         if events_list:
             self.last_msg_id = events_list[-1][0]
         yield from events_list
@@ -61,12 +63,15 @@ class RedisStreamOnly(BasicStream):
 
 class RedisStreamFactory(StreamFactory):
 
-    def __init__(self, host='localhost', port='6379', max_stream_length=10):
+    def __init__(self, host='localhost', port='6379', max_stream_length=10, block=0):
+        self.block = block
         self.redis_db = Database(host=host, port=port)
         self.max_stream_length = max_stream_length
 
     def create(self, key, stype='streamAndConsumer'):
         if stype == 'streamAndConsumer':
-            return RedisStreamAndConsumer(redis_db=self.redis_db, key=key, max_stream_length=self.max_stream_length)
+            return RedisStreamAndConsumer(
+                redis_db=self.redis_db, key=key, max_stream_length=self.max_stream_length, block=self.block)
         elif stype == 'streamOnly':
-            return RedisStreamOnly(redis_db=self.redis_db, key=key, max_stream_length=self.max_stream_length)
+            return RedisStreamOnly(
+                redis_db=self.redis_db, key=key, max_stream_length=self.max_stream_length, block=self.block)
