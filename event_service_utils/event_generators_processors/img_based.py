@@ -151,13 +151,14 @@ class ImageFileUploadedCloudStorageEventGenerator(BaseEventGenerator, MinioMixin
             self.last_id += 1
             if self.last_id >= len(self.imgs_loop):
                 self.last_id = 0
-            time.sleep(0.4)
+            time.sleep(0.26)
             return self.imgs_loop[self.last_id]
         else:
             return input(f'Next image name ({self.imgs_dir}/): ')
 
     def next_event(self):
         img_id = self.get_next_image_id()
+        print(f"next frame: {img_id}")
         img_path = self.get_image_path(img_id)
         obj_data = self.upload_file_to_storage(img_path)
         img_url = obj_data
@@ -170,11 +171,13 @@ class ImageFileUploadedCloudStorageEventGenerator(BaseEventGenerator, MinioMixin
 
 
 class ImageUploadFromMpeg4EventGenerator(BaseEventGenerator, MinioMixing):
-    def __init__(self, file_storage_cli_config, media_source, source):
+    def __init__(self, file_storage_cli_config, media_source, source, sleep=0.12):
+        self.sleep = sleep
         self.file_storage_cli_config = file_storage_cli_config
         self.initialize_file_storage_client()
         self.media_source = media_source
         self.reader = imageio.get_reader(media_source)  # <video0> for webcam
+        self.last_frame_time = time.time()
 
         BaseEventGenerator.__init__(
             self, source=source, event_schema=EventVEkgMessage)
@@ -186,8 +189,9 @@ class ImageUploadFromMpeg4EventGenerator(BaseEventGenerator, MinioMixing):
         )
 
     def next_event(self):
-        # time.sleep(0.4)
-        print('new frame')
+        if self.sleep:
+            time.sleep(self.sleep)
+
         try:
             frame = self.reader.get_next_data()
         except imageio.core.format.CannotReadFrameError as e:
@@ -202,6 +206,12 @@ class ImageUploadFromMpeg4EventGenerator(BaseEventGenerator, MinioMixing):
 
         img_url = obj_data
         schema = self.event_schema(id=event_id, vekg={}, image_url=img_url, source=self.source)
+
+        end_time = time.time()
+        total_time = end_time - self.last_frame_time
+        self.last_frame_time = end_time
+        print(f'published event id:{event_id}')
+        print(f'Total time from last publishing: {total_time:.4f} secs')
         return schema.json_msg_load_from_dict()
 
 
