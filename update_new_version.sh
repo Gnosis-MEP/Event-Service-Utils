@@ -11,5 +11,6 @@ echo "commiting changes in pypi repo"
 git add data/
 git commit -m 'new version'
 echo "pushing changes to heroku"
+git push origin master
 git push heroku master
 popd
