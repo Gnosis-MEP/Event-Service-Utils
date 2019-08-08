@@ -8,7 +8,15 @@ class MockedStreamAndConsumer(BasicStream):
         self.mocked_values = mocked_values
 
     def read_events(self, count=1):
-        yield from self.mocked_values
+        event_list = []
+        for i in range(count):
+            if self.mocked_values:
+                next_event = self.mocked_values.pop(0)
+                if next_event:
+                    event_list.append(next_event)
+                    yield next_event
+            else:
+                return None
 
     def write_events(self, *events):
         self.mocked_values.extend(events)
