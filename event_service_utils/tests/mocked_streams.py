@@ -1,4 +1,4 @@
-from .base import BasicStream, StreamFactory
+from event_service_utils.base import BasicStream, StreamFactory
 
 
 class MockedStreamAndConsumer(BasicStream):

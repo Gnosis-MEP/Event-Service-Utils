@@ -11,6 +11,7 @@ bumpversion = "*"
 flake8 = "*"
 
 [packages]
+logzero = "==1.5.0"
 
 [requires]
 python_version = "3.6"

@@ -7,11 +7,11 @@ with open('README.md') as readme_file:
     readme = readme_file.read()
 
 
-# with open('requirements.txt') as requirements_file:
-#     requirements = [r.split('==')[0] for r in requirements_file.readlines()]
-#     requirements.pop(0)
+with open('requirements.txt') as requirements_file:
+    requirements = [r.split('==')[0] for r in requirements_file.readlines()]
+    requirements.pop(0)
 
-requirements = []
+# requirements = []
 
 test_requirements = [
 ]
