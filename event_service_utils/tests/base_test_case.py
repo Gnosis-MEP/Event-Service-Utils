@@ -1,14 +1,13 @@
 import unittest
 
-from event_service_utils.schemas.internal_msgs import (
-    BaseInternalMessage
-)
 
 from .mocked_streams import MockedStreamFactory
 
 
 class MockedServiceStreamTestCase(unittest.TestCase):
-    GLOBAL_SERVICE_CONFIG = {}
+    GLOBAL_SERVICE_CONFIG = {
+        'logging_level': 'DEBUG'
+    }
     SERVICE_CLS = None
     MOCKED_STREAMS_DICT = {}
 
@@ -30,4 +29,3 @@ class MockedServiceStreamTestCase(unittest.TestCase):
         service_kwargs.update({'stream_factory': self.stream_factory})
         self.service = self.service_cls(**service_kwargs)
         return self.service
-        # self.service.run()
