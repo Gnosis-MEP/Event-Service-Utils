@@ -9,7 +9,7 @@ with open('README.md') as readme_file:
 
 with open('requirements.txt') as requirements_file:
     requirements = [r.split('==')[0] for r in requirements_file.readlines()]
-    requirements.pop(0)
+    # requirements.pop(0)
 
 # requirements = []
 
