@@ -26,6 +26,12 @@ class BaseService():
     def log_state(self):
         self.logger.debug('Current State:')
 
+    def _log_dict(self, dict_name, dict):
+        log_msg = f'- {dict_name}:'
+        for k, v in dict.items():
+            log_msg += f'\n-- {k}  ---  {v}'
+        self.logger.debug(log_msg)
+
     def process_cmd(self):
         self.logger.debug('Processing CMD..')
         event_list = self.service_cmd.read_events(count=1)
