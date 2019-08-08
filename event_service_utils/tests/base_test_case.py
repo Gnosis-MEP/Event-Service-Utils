@@ -1,11 +1,10 @@
 import unittest
 
-
-from mocked_streams import MockedStreamFactory
-
 from event_service_utils.schemas.internal_msgs import (
     BaseInternalMessage
 )
+
+from .mocked_streams import MockedStreamFactory
 
 
 class MockedServiceStreamTestCase(unittest.TestCase):
