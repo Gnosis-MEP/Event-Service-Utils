@@ -3,46 +3,46 @@ import uuid
 
 import redis
 
-from event_service_utils.img_serialization.base import image_to_bytes
-from event_service_utils.img_serialization.pil import image_from_bytes
+from event_service_utils.img_serialization.pil import image_from_nd_array
+from event_service_utils.img_serialization.cv2 import nd_array_from_ndarray_bytes, DEFAULT_DTYPE
 
 
 class RedisImageCache():
     def initialize_file_storage_client(self):
         self.client = redis.StrictRedis(**self.file_storage_cli_config)
 
-    def upload_inmemory_to_storage(self, pil_img):
+    def upload_inmemory_to_storage(self, img_numpy_array):
         img_key = str(uuid.uuid4())
-        bytes_io = image_to_bytes(pil_img)
+        nd_array_bytes = img_numpy_array.tobytes(order='C')
 
         expiration_time = int(datetime.timedelta(minutes=2).total_seconds())
 
-        ret = self.client.set(img_key, bytes_io)
+        ret = self.client.set(img_key, nd_array_bytes)
         if ret:
             self.client.expire(img_key, expiration_time)
         else:
             raise Exception('Couldnt set image in redis')
-        # try:
-        #     ret = self.fs_client.put_object(
-        #         bucket_name=self.source,
-        #         object_name=img_name,
-        #         length=length,
-        #         data=bytes_io,
-        #         content_type='image/jpeg'
-        #     )
-        #     ret = self.fs_client.presigned_get_object(self.source, img_name, expires=expiration_time)
-        # except ResponseError as err:
-        #     raise err
-
-        # img = load_img_from_file('panda.jpg') #PIL img
-        # bytes_io = image_to_bytes(img)
-
-        # img_back.show()
         return img_key
 
-    def get_image_by_key(self, img_key):
-        bytes_io = self.client.get(img_key)
-        if not bytes_io:
+    def get_image_ndarray_bytes_by_key(self, img_key):
+        ndarray_bytes = self.client.get(img_key)
+        return ndarray_bytes
+
+    def get_image_ndarray_by_key_and_shape(self, img_key, shape):
+        ndarray_bytes = self.get_image_ndarray_bytes_by_key(img_key)
+        if not ndarray_bytes:
             return None
-        img = image_from_bytes(bytes_io)
+        dtype = DEFAULT_DTYPE
+        ndarray = nd_array_from_ndarray_bytes(ndarray_bytes, shape, dtype=dtype)
+        return ndarray
+
+    def get_image_ndarray_by_key_widht_height(self, img_key, width, height):
+        n_channels = 3
+        shape = (height, width, n_channels)
+        return self.get_image_ndarray_by_key_and_shape(img_key, shape)
+
+    def get_image_by_key_widht_height(self, img_key, width, height):
+        nd_array = self.get_image_ndarray_by_key_widht_height(img_key, width, height)
+
+        img = image_from_nd_array(nd_array)
         return img

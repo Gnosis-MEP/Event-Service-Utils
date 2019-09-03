@@ -17,3 +17,8 @@ def image_from_bytes(img_bytes):
 def load_img_from_url(img_url):
     img = Image.open(image_bytes_buffer_from_url(img_url))
     return img
+
+
+def image_from_nd_array(nd_array):
+    pil_img = Image.fromarray(nd_array[:, :, ::-1].copy())
+    return pil_img

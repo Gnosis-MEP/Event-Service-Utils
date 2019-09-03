@@ -221,18 +221,24 @@ class Mpeg4FromRedisCacheWindowEventProcessor(BaseEventProcessor, RedisImageCach
         self.file_storage_cli_config = file_storage_cli_config
         self.initialize_file_storage_client()
         self.video_player = video_player
-        super(Mpeg4FromRedisCacheWindowEventProcessor, self).__init__(event_schema=EventWindowMessage)
+        super(Mpeg4FromRedisCacheWindowEventProcessor, self).__init__(event_schema=EventVEkgMessage)
 
     def process(self, event_tuple):
         event_id, json_msg = event_tuple
         event_schema = self.event_schema(json_msg=json_msg)
         event_data = event_schema.object_load_from_msg()
-        for img_key in event_data.get('event_img_urls', []):
-            frame = self.get_image_by_key(img_key)
-            if frame:
-                cv2_img = cv2_from_pil_image(frame)
-                fps = 0.38
-                self.video_player.play_next(cv2_img, fps)
+        # for img_key in event_data.get('event_img_urls', []):
+
+        img_key = event_data['image_url']
+        width = event_data['width']
+        height = event_data['height']
+        color_channels = event_data['color_channels']
+        n_channels = len(color_channels)
+        nd_shape = (int(height), int(width), n_channels)
+        frame = self.get_image_ndarray_by_key_and_shape(img_key, nd_shape)
+        if frame is not None:
+            fps = 0.0
+            self.video_player.play_next(frame, fps)
 
 
 class Mpeg4FromImageURLEventProcessor(BaseEventProcessor):
