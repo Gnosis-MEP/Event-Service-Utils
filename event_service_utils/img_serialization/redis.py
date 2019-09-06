@@ -1,4 +1,3 @@
-import datetime
 import uuid
 
 import redis
@@ -15,11 +14,9 @@ class RedisImageCache():
         img_key = str(uuid.uuid4())
         nd_array_bytes = img_numpy_array.tobytes(order='C')
 
-        expiration_time = int(datetime.timedelta(minutes=2).total_seconds())
-
         ret = self.client.set(img_key, nd_array_bytes)
         if ret:
-            self.client.expire(img_key, expiration_time)
+            self.client.expire(img_key, self.expiration_time)
         else:
             raise Exception('Couldnt set image in redis')
         return img_key
