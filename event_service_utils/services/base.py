@@ -52,10 +52,15 @@ class BaseService():
         for event_tuple in event_list:
             event_id, json_msg = event_tuple
             event_data = self.default_event_deserializer(json_msg)
-            assert 'action' in event_data, "'action' field should always be present in all commands"
-            action = event_data['action']
-            self.process_action(action, event_data, json_msg)
-            self.log_state()
+            try:
+                assert 'action' in event_data, "'action' field should always be present in all commands"
+            except Exception as e:
+                self.logger.exception(e)
+                self.logger.info(f'Ignoring bad event data: {event_data}')
+            else:
+                action = event_data['action']
+                self.process_action(action, event_data, json_msg)
+                self.log_state()
 
     def run_forever(self, method):
         while True:
