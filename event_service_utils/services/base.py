@@ -1,13 +1,13 @@
+import json
 import logging
 import logzero
 
 
 class BaseService():
-    def __init__(self, name, service_stream_key, service_cmd_key, cmd_event_schema, stream_factory, logging_level):
+    def __init__(self, name, service_stream_key, service_cmd_key, stream_factory, logging_level):
         self.name = name
         self.logging_level = logging_level
         self.stream_factory = stream_factory
-        self.cmd_event_schema = cmd_event_schema
         self.service_stream = self.stream_factory.create(service_stream_key)
         self.service_cmd = self.stream_factory.create(service_cmd_key, stype='streamOnly')
         self.logger = self._setup_logging()
@@ -32,13 +32,23 @@ class BaseService():
             log_msg += f'\n-- {k}  ---  {v}'
         self.logger.debug(log_msg)
 
+    def default_event_serializer(self, event_data):
+        event_msg = {'event': json.dumps(event_data)}
+        return event_msg
+
+    def default_event_deserializer(self, json_msg):
+        event_key = b'event' if b'event' in json_msg else 'event'
+        event_json = json_msg.get(event_key, '{}')
+        event_data = json.loads(event_json)
+        return event_data
+
     def process_cmd(self):
         self.logger.debug('Processing CMD..')
         event_list = self.service_cmd.read_events(count=1)
         for event_tuple in event_list:
             event_id, json_msg = event_tuple
-            event_schema = self.cmd_event_schema(json_msg=json_msg)
-            event_data = event_schema.object_load_from_msg()
+            event_data = self.default_event_deserializer(json_msg)
+            assert 'action' in event_data
             action = event_data['action']
             self.process_action(action, event_data, json_msg)
             self.log_state()

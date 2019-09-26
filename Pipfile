@@ -11,7 +11,10 @@ bumpversion = "*"
 flake8 = "*"
 
 [packages]
+jaeger-client = "==4.1.0"
+opentracing = "==2.1.0"
 logzero = "==1.5.0"
+walrus = "==0.7.1"
 
 [requires]
 python_version = "3.6"
