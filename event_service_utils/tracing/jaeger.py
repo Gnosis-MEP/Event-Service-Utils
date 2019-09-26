@@ -2,7 +2,7 @@ import logging
 from jaeger_client import Config
 
 
-def init_tracer(service_name):
+def init_tracer(service_name, reporting_host, reporting_port):
     logging.getLogger('').handlers = []
     logging.basicConfig(format='%(message)s', level=logging.DEBUG)
 
@@ -11,6 +11,10 @@ def init_tracer(service_name):
             'sampler': {
                 'type': 'const',
                 'param': 1,
+            },
+            'local_agent': {
+                'reporting_host': reporting_host,
+                'reporting_port': reporting_port,
             },
             'logging': True,
             'reporter_batch_size': 1,
