@@ -8,7 +8,7 @@ ACTION_NAME_TAG = 'process-action-name'
 
 class BaseTracerService(BaseService):
     def __init__(
-            self, tracer, name, service_stream_key, service_cmd_key, stream_factory, logging_level):
+            self, name, service_stream_key, service_cmd_key, stream_factory, logging_level, tracer):
         super(BaseTracerService, self).__init__(
             name=name,
             service_stream_key=service_stream_key,
