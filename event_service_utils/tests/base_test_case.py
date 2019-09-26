@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 
 from .mocked_streams import MockedStreamFactory
@@ -27,5 +28,9 @@ class MockedServiceStreamTestCase(unittest.TestCase):
     def instantiate_service(self):
         service_kwargs = self.service_config.copy()
         service_kwargs.update({'stream_factory': self.stream_factory})
-        self.service = self.service_cls(**service_kwargs)
+        with patch('event_service_utils.tracing.jaeger.init_tracer') as mockedTracer:
+            self.service = self.service_cls(**service_kwargs)
+            if self.service.tracer:
+                self.service.tracer.close()
+            self.service.tracer = mockedTracer
         return self.service
