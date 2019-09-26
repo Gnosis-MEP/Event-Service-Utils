@@ -1,3 +1,4 @@
+import uuid
 import json
 import logging
 import logzero
@@ -42,13 +43,16 @@ class BaseService():
         event_data = json.loads(event_json)
         return event_data
 
+    def service_based_random_event_id(self):
+        return f'{self.name}:{str(uuid.uuid4())}'
+
     def process_cmd(self):
         self.logger.debug('Processing CMD..')
         event_list = self.service_cmd.read_events(count=1)
         for event_tuple in event_list:
             event_id, json_msg = event_tuple
             event_data = self.default_event_deserializer(json_msg)
-            assert 'action' in event_data
+            assert 'action' in event_data, "'action' field should always be present in all commands"
             action = event_data['action']
             self.process_action(action, event_data, json_msg)
             self.log_state()

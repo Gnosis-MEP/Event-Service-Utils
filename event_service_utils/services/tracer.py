@@ -109,7 +109,8 @@ class BaseTracerService(BaseService):
         for event_tuple in event_list:
             event_id, json_msg = event_tuple
             event_data = self.default_event_deserializer(json_msg)
-            assert 'action' in event_data
+            assert 'id' in event_data, "'id' field should always be present in all events"
+            assert 'action' in event_data, "'action' field should always be present in all commands"
             action = event_data['action']
             self.process_action_with_tracer(action, event_data, json_msg)
             self.log_state()
