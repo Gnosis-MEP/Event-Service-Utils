@@ -86,7 +86,8 @@ class BaseTracerService(BaseService):
             }
         )
 
-    def process_action_with_tracer(self, action, event_data, json_msg):
+    def process_action_wrapper(self, event_data, json_msg):
+        action = event_data.get('action', '')
         self.event_trace_for_method_with_event_data(
             method=self.process_action,
             method_args=(),
@@ -103,19 +104,17 @@ class BaseTracerService(BaseService):
             }
         )
 
-    def process_cmd(self):
-        self.logger.debug('Processing CMD..')
-        event_list = self.service_cmd.read_events(count=1)
-        for event_tuple in event_list:
-            event_id, json_msg = event_tuple
-            event_data = self.default_event_deserializer(json_msg)
-            try:
-                assert 'id' in event_data, "'id' field should always be present in all events"
-                assert 'action' in event_data, "'action' field should always be present in all commands"
-            except Exception as e:
-                self.logger.exception(e)
-                self.logger.info(f'Ignoring bad event data: {event_data}')
-            else:
-                action = event_data['action']
-                self.process_action_with_tracer(action, event_data, json_msg)
-                self.log_state()
+    def process_data_event_wrapper(self, event_data, json_msg):
+        self.event_trace_for_method_with_event_data(
+            method=self.process_data_event,
+            method_args=(),
+            method_kwargs={
+                'event_data': event_data,
+                'json_msg': json_msg
+            },
+            get_event_tracer=True,
+            tracer_tags={
+                tags.SPAN_KIND: tags.SPAN_KIND_CONSUMER,
+                EVENT_ID_TAG: event_data['id'],
+            }
+        )

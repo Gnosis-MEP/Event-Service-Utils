@@ -12,6 +12,8 @@ class BaseService():
         self.service_stream = self.stream_factory.create(service_stream_key)
         self.service_cmd = self.stream_factory.create(service_cmd_key, stype='streamOnly')
         self.logger = self._setup_logging()
+        self.cmd_validation_fields = ['id', 'action']
+        self.data_validation_fields = ['id']
 
     def _setup_logging(self):
         log_format = (
@@ -20,9 +22,6 @@ class BaseService():
         )
         formatter = logzero.LogFormatter(fmt=log_format)
         return logzero.setup_logger(name=self.name, level=logging.getLevelName(self.logging_level), formatter=formatter)
-
-    def process_action(self, action, event_data, json_msg):
-        self.logger.debug('processing action: "%s" with this args: "%s"' % (event_data['action'], event_data))
 
     def log_state(self):
         self.logger.debug('Current State:')
@@ -46,21 +45,64 @@ class BaseService():
     def service_based_random_event_id(self):
         return f'{self.name}:{str(uuid.uuid4())}'
 
+    def event_validation_fields(self, event_data, fields):
+        missing_fields = []
+        for field in fields:
+            if field not in event_data:
+                missing_fields.add(field)
+
+        if missing_fields:
+            self.logger.error('Missing fields: "{missing_fields}" in event "{event_data}".')
+            return False
+        return True
+
+    def process_data_event(self, event_data, json_msg):
+        if not self.event_validation_fields(event_data, self.data_validation_fields):
+            self.logger.info(f'Ignoring bad event data: {event_data}')
+            return False
+        self.logger.debug(f'Processing new data event: {event_data}')
+        return True
+
+    def process_data_event_wrapper(self, event_data, json_msg):
+        self.process_data_event(event_data, json_msg)
+
+    def process_data(self):
+        self.logger.debug('Processing DATA..')
+        if not self.service_stream:
+            return
+        event_list = self.service_stream.read_events(count=1)
+        for event_tuple in event_list:
+            event_id, json_msg = event_tuple
+            try:
+                event_data = self.default_event_deserializer(json_msg)
+                self.process_data_event_wrapper(event_data, json_msg)
+            except Exception as e:
+                self.logger.error(f'Error processing {json_msg}:')
+                self.logger.exception(e)
+
+    def process_action(self, action, event_data, json_msg):
+        if not self.event_validation_fields(event_data, self.cmd_validation_fields):
+            self.logger.info(f'Ignoring bad event data: {event_data}')
+            return False
+        self.logger.debug('processing action: "%s" with this args: "%s"' % (event_data['action'], event_data))
+        return True
+
+    def process_action_wrapper(self, event_data, json_msg):
+        action = event_data.get('action')
+        self.process_action(action, event_data, json_msg)
+
     def process_cmd(self):
         self.logger.debug('Processing CMD..')
         event_list = self.service_cmd.read_events(count=1)
         for event_tuple in event_list:
             event_id, json_msg = event_tuple
-            event_data = self.default_event_deserializer(json_msg)
             try:
-                assert 'action' in event_data, "'action' field should always be present in all commands"
-            except Exception as e:
-                self.logger.exception(e)
-                self.logger.info(f'Ignoring bad event data: {event_data}')
-            else:
-                action = event_data['action']
-                self.process_action(action, event_data, json_msg)
+                event_data = self.default_event_deserializer(json_msg)
+                self.process_action_wrapper(event_data, json_msg)
                 self.log_state()
+            except Exception as e:
+                self.logger.error(f'Error processing {json_msg}:')
+                self.logger.exception(e)
 
     def run_forever(self, method):
         while True:
