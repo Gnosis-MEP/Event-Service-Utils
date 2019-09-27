@@ -49,10 +49,10 @@ class BaseService():
         missing_fields = []
         for field in fields:
             if field not in event_data:
-                missing_fields.add(field)
+                missing_fields.append(field)
 
         if missing_fields:
-            self.logger.error('Missing fields: "{missing_fields}" in event "{event_data}".')
+            self.logger.error(f'Missing fields: "{missing_fields}" in event "{event_data}".')
             return False
         return True
 
