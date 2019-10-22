@@ -1,5 +1,7 @@
 from opentracing.ext import tags
 from opentracing.propagation import Format
+from prometheus_client import REGISTRY
+
 from .base import BaseService
 
 EVENT_ID_TAG = 'event-id'
@@ -17,6 +19,7 @@ class BaseTracerService(BaseService):
             logging_level=logging_level
         )
         self.tracer = tracer
+        self.prometheus_metrics_on_traces = False
 
     def get_event_tracer_kwargs(self, event_data):
         tracer_kwargs = {}
@@ -39,6 +42,12 @@ class BaseTracerService(BaseService):
 
     def event_trace_for_method_with_event_data(
             self, method, method_args, method_kwargs, get_event_tracer=False, tracer_tags=None):
+        if hasattr(self, 'prometheus_metrics_on_traces') and self.prometheus_metrics_on_traces:
+            for metric in REGISTRY.collect():
+                for sample in metric.samples:
+                    tag_name = f'{sample.name}{sample.labels}'
+                    tracer_tags[tag_name] = REGISTRY.get_sample_value(sample.name, sample.labels)
+
         span_name = method.__name__
         if tracer_tags is None:
             tracer_tags = {}
