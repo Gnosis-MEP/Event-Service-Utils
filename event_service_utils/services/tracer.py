@@ -1,6 +1,7 @@
 from opentracing.ext import tags
 from opentracing.propagation import Format
 from prometheus_client import REGISTRY
+from prometheus_client import start_http_server
 
 from .base import BaseService
 
@@ -20,6 +21,7 @@ class BaseTracerService(BaseService):
         )
         self.tracer = tracer
         self.prometheus_metrics_on_traces = False
+        self.start_prometheus_http_server = False
 
     def get_event_tracer_kwargs(self, event_data):
         tracer_kwargs = {}
@@ -127,3 +129,8 @@ class BaseTracerService(BaseService):
                 EVENT_ID_TAG: event_data['id'],
             }
         )
+
+    def run(self):
+        super(BaseTracerService, self).run()
+        if hasattr(self, 'start_prometheus_http_server') and self.start_prometheus_http_server:
+            start_http_server(8000)
