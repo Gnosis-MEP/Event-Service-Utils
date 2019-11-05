@@ -29,4 +29,6 @@ class MockedStreamFactory(StreamFactory):
         self.mocked_dict = mocked_dict
 
     def create(self, key, stype=None):
+        if key not in self.mocked_dict:
+            self.mocked_dict[key] = []
         return MockedStreamAndConsumer(key=key, mocked_values=self.mocked_dict[key])

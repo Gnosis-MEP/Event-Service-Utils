@@ -30,7 +30,7 @@ class MockedServiceStreamTestCase(unittest.TestCase):
         service_kwargs.update({'stream_factory': self.stream_factory})
         with patch('event_service_utils.tracing.jaeger.init_tracer') as mockedTracer:
             self.service = self.service_cls(**service_kwargs)
-            if self.service.tracer:
+            if hasattr(self.service, 'tracer') and self.service.tracer:
                 self.service.tracer.close()
             self.service.tracer = mockedTracer
         return self.service
