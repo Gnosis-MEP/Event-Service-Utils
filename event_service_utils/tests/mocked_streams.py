@@ -22,6 +22,9 @@ class MockedStreamAndConsumer(BasicStream):
         self.mocked_values.extend(events)
         return self.mocked_values
 
+    def ack_events(self, *message_ids):
+        pass
+
 
 class MockedStreamFactory(StreamFactory):
 
