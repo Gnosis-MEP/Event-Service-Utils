@@ -27,7 +27,11 @@ class MockedServiceStreamTestCase(unittest.TestCase):
 
     def instantiate_service(self):
         service_kwargs = self.service_config.copy()
-        service_kwargs.update({'stream_factory': self.stream_factory})
+        # quickfix by piyush for testcase of window-manager
+        if 'no_stream_factory_flag' not in service_kwargs:
+            service_kwargs.update({'stream_factory': self.stream_factory})
+        else:
+            del service_kwargs['no_stream_factory_flag']
         with patch('event_service_utils.tracing.jaeger.init_tracer') as mockedTracer:
             self.service = self.service_cls(**service_kwargs)
             if hasattr(self.service, 'tracer') and self.service.tracer:
