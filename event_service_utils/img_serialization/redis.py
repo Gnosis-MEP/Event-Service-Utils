@@ -43,3 +43,9 @@ class RedisImageCache():
 
         img = image_from_nd_array(nd_array)
         return img
+
+    def delete_image_ndarray_by_key(self, img_key):
+        return_value = self.client.delete(img_key)
+        if not return_value:
+            raise Exception("Could'nt remove image: "+img_key+" from redis.")
+        return return_value
