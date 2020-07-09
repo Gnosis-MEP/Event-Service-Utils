@@ -65,6 +65,17 @@ class RedisStreamOnly(BasicStream):
             self.last_msg_id = self.single_io_stream.info()['last-entry'][0]
 
         self.max_stream_length = max_stream_length
+        self._set_default_write_kwargs()
+
+    def _set_default_write_kwargs(self):
+        write_kwargs = {
+        }
+        if self.max_stream_length is not None:
+            write_kwargs.update({
+                'maxlen': self.max_stream_length,
+                'approximate': False
+            })
+        self.default_write_kwargs = write_kwargs
 
     def read_events(self, count=1):
         events_list = self.single_io_stream.read(count=count, last_id=self.last_msg_id, block=self.block)
@@ -77,7 +88,7 @@ class RedisStreamOnly(BasicStream):
 
     def write_events(self, *events):
         return [
-            self.single_io_stream.add(data=event, maxlen=self.max_stream_length, approximate=False) for event in events
+            self.single_io_stream.add(data=event, **self.default_write_kwargs) for event in events
         ]
 
 
