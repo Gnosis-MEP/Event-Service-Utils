@@ -83,7 +83,7 @@ class RedisStreamOnly(BasicStream):
 
 class RedisStreamFactory(StreamFactory):
 
-    def __init__(self, host='localhost', port='6379', max_stream_length=10, block=0):
+    def __init__(self, host='localhost', port='6379', max_stream_length=100, block=0):
         self.block = block
         self.redis_db = Database(host=host, port=port)
         self.max_stream_length = max_stream_length
