@@ -14,6 +14,7 @@ class BaseService():
         self.logger = self._setup_logging()
         self.cmd_validation_fields = ['id', 'action']
         self.data_validation_fields = ['id']
+        self.ack_data_stream_events = True
 
     def _setup_logging(self):
         log_format = (
@@ -79,6 +80,12 @@ class BaseService():
             except Exception as e:
                 self.logger.error(f'Error processing {json_msg}:')
                 self.logger.exception(e)
+            finally:
+                if self.ack_data_stream_events:
+                    # we are always ack the events, even if they fail.
+                    # in a better world we would actually do some treatments to
+                    # see if the event should be re-processed or not, before ack.
+                    self.service_stream.ack(event_id)
 
     def process_action(self, action, event_data, json_msg):
         if not self.event_validation_fields(event_data, self.cmd_validation_fields):
@@ -93,6 +100,7 @@ class BaseService():
 
     def process_cmd(self):
         self.logger.debug('Processing CMD..')
+
         event_list = self.service_cmd.read_events(count=1)
         for event_tuple in event_list:
             event_id, json_msg = event_tuple

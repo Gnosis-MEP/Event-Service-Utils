@@ -1,21 +1,35 @@
 from walrus import Database
+from walrus.containers import make_python_attr as walrus_normalized_cg_stream_key
 
 from .base import BasicStream, StreamFactory
 
 
 class RedisStreamAndConsumer(BasicStream):
-    def __init__(self, redis_db, key, max_stream_length=10, block=0):
+    def __init__(self, redis_db, key, max_stream_length=100, block=0, create_cg=True):
         BasicStream.__init__(self, key)
         self.block = block
         self.redis_db = redis_db
+        self.create_cg = create_cg
         self.output_stream = self._get_stream(key)
         self.input_consumer_group = self._get_single_stream_consumer_group(key)
         self.max_stream_length = max_stream_length
+        self._set_default_write_kwargs()
+
+    def _set_default_write_kwargs(self):
+        write_kwargs = {
+        }
+        if self.max_stream_length is not None:
+            write_kwargs.update({
+                'maxlen': self.max_stream_length,
+                'approximate': False
+            })
+        self.default_write_kwargs = write_kwargs
 
     def _get_single_stream_consumer_group(self, key):
         group_name = 'cg-%s' % key
         consumer_group = self.redis_db.consumer_group(group_name, key)
-        consumer_group.create()
+        if self.create_cg:
+            consumer_group.create()
         consumer_group.set_id(id='$')
         return consumer_group
 
@@ -29,8 +43,14 @@ class RedisStreamAndConsumer(BasicStream):
 
     def write_events(self, *events):
         return [
-            self.output_stream.add(data=event, maxlen=self.max_stream_length, approximate=False) for event in events
+            self.output_stream.add(data=event, **self.default_write_kwargs) for event in events
         ]
+
+    def ack(self, event_id, stream_key=None):
+        if stream_key is None:
+            stream_key = self.key
+        cg_stream = getattr(self.input_consumer_group, walrus_normalized_cg_stream_key(stream_key))
+        return cg_stream.ack(event_id)
 
 
 class RedisStreamOnly(BasicStream):

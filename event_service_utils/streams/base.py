@@ -13,6 +13,9 @@ class BasicStream():
     def write_events(self, *events):
         raise NotImplementedError()
 
+    def ack(self, event_id, stream_key=None):
+        raise NotImplementedError()
+
 
 class StreamFactory():
     def __init__(self):
