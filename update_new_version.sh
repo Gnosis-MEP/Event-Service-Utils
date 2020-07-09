@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 python setup.py sdist
 
 CUR_VERSION=$(cat setup.cfg | grep "current_version = .*" | awk '{split($0,a,"\= "); print a[2]}')
