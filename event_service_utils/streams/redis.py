@@ -54,7 +54,7 @@ class RedisStreamAndConsumer(BasicStream):
 
 
 class RedisStreamOnly(BasicStream):
-    def __init__(self, redis_db, key, max_stream_length=10, block=0):
+    def __init__(self, redis_db, key, max_stream_length=100, block=0):
         BasicStream.__init__(self, key)
         self.block = block
         self.redis_db = redis_db
