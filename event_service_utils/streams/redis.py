@@ -5,7 +5,7 @@ from .base import BasicStream, StreamFactory
 
 
 class RedisStreamAndConsumer(BasicStream):
-    def __init__(self, redis_db, key, max_stream_length=100, block=0, create_cg=True):
+    def __init__(self, redis_db, key, max_stream_length=None, block=0, create_cg=True):
         BasicStream.__init__(self, key)
         self.block = block
         self.redis_db = redis_db
@@ -54,7 +54,7 @@ class RedisStreamAndConsumer(BasicStream):
 
 
 class RedisStreamOnly(BasicStream):
-    def __init__(self, redis_db, key, max_stream_length=100, block=0):
+    def __init__(self, redis_db, key, max_stream_length=None, block=0):
         BasicStream.__init__(self, key)
         self.block = block
         self.redis_db = redis_db
@@ -94,7 +94,7 @@ class RedisStreamOnly(BasicStream):
 
 class RedisStreamFactory(StreamFactory):
 
-    def __init__(self, host='localhost', port='6379', max_stream_length=100, block=0):
+    def __init__(self, host='localhost', port='6379', max_stream_length=None, block=0):
         self.block = block
         self.redis_db = Database(host=host, port=port)
         self.max_stream_length = max_stream_length
