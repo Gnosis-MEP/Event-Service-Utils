@@ -3,9 +3,9 @@ from jaeger_client import Config
 from jaeger_client.metrics.prometheus import PrometheusMetricsFactory
 
 
-def init_tracer(service_name, reporting_host, reporting_port, use_metrics=False):
+def init_tracer(service_name, reporting_host, reporting_port, use_metrics=False, logging_level=logging.ERROR):
     logging.getLogger('').handlers = []
-    logging.basicConfig(format='%(message)s', level=logging.DEBUG)
+    logging.basicConfig(format='%(message)s', level=logging_level)
     config_kwargs = {}
     config_kwargs.update(
         config={  # usually read from some yaml config
