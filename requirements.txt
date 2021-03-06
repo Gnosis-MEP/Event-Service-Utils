@@ -4,3 +4,4 @@ prometheus-client==0.7.1
 opentracing==2.1.0
 logzero==1.5.0
 walrus==0.7.1
+redisgraph==2.1.4
