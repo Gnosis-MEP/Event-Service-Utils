@@ -1,4 +1,18 @@
-from redisgraph import Node, Edge
+class Node():
+
+    def __init__(self, node_id, label, properties):
+        self.node_id = node_id
+        self.label = label
+        self.properties = properties
+
+
+class Edge():
+
+    def __init__(self, src_node, relation, dest_node, properties):
+        self.src_node = src_node
+        self.relation = relation
+        self.dest_node = dest_node
+        self.properties = properties
 
 
 class MockedGraph():
