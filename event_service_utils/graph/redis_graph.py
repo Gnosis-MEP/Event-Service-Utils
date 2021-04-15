@@ -63,6 +63,12 @@ class RedisGraph(VEKG):
         # result.pretty_print()
         return result.result_set
 
+    def execute_query_for_output(self, query, params=None):
+        if params is None:
+            params = dict()
+        result = self.graph.query(query, params=params)
+        return result.header, result.result_set
+
     def commit(self):
         self.graph.flush()
 
