@@ -46,8 +46,20 @@ class MockedGraph():
     def retrieve_all_nodes_and_edges(self):
         pass
 
-    def execute_query(self, query, params=None):
+    def retrieve_all_matched_nodes_and_edges(self):
         pass
+
+    def execute_query(self, query, params=None):
+        return []
+
+    def execute_query_for_output(self, query, params=None):
+        return [], []
+
+    def commit(self):
+        pass
+
+    def drop(self):
+        self.graph = {'id': None, 'nodes':[], 'edges':[]}
 
 
 class MockedGraphEngine():
