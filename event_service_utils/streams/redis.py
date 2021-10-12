@@ -53,6 +53,25 @@ class RedisStreamAndConsumer(BasicStream):
         return cg_stream.ack(event_id)
 
 
+class ManyKeyConsumerGroupOnly(BasicStream):
+    def __init__(self, redis_db, keys, max_stream_length=None, block=0, create_cg=True):
+        BasicStream.__init__(self, keys)
+        self.block = block
+        self.redis_db = redis_db
+        self.input_consumer_group = self._get_many_stream_consumer_group(keys)
+        self.max_stream_length = max_stream_length
+
+    def _get_many_stream_consumer_group(self, keys):
+        group_name = 'cg-%s' % keys[0]
+        consumer_group = self.redis_db.consumer_group(group_name, keys)
+        consumer_group.create()
+        consumer_group.set_id(id='$')
+        return consumer_group
+
+    def read_stream_events_list(self, count=1):
+        return self.input_consumer_group.read(count=count, block=self.block)
+
+
 class RedisStreamOnly(BasicStream):
     def __init__(self, redis_db, key, max_stream_length=None, block=0):
         BasicStream.__init__(self, key)
@@ -106,3 +125,6 @@ class RedisStreamFactory(StreamFactory):
         elif stype == 'streamOnly':
             return RedisStreamOnly(
                 redis_db=self.redis_db, key=key, max_stream_length=self.max_stream_length, block=self.block)
+        elif stype == 'manyKeyConsumerOnly':
+            return ManyKeyConsumerGroupOnly(
+                redis_db=self.redis_db, keys=key, max_stream_length=self.max_stream_length, block=self.block)

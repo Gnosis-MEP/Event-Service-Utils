@@ -26,4 +26,5 @@ class BaseRegistryService(BaseTracerService):
 
     def run(self):
         super(BaseRegistryService, self).run()
-        self.annouce_server()
+        if self.service_details is not None:
+            self.annouce_server()
