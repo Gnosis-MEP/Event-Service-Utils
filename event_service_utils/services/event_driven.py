@@ -13,7 +13,8 @@ class BaseEventDrivenCMDService(BaseRegistryService):
         self.stream_factory = stream_factory
         self.service_stream = self.stream_factory.create(service_stream_key)
         self.service_cmd_key_list = service_cmd_key_list
-        self.service_cmd = self.stream_factory.create(service_cmd_key_list, stype='manyKeyConsumerOnly')
+        self.service_cmd = self.stream_factory.create(
+            service_cmd_key_list, stype='manyKeyConsumerOnly', cg_id=f'cg-{self.name}')
         self.logger = self._setup_logging()
         self.cmd_validation_fields = ['id', 'action']
         self.data_validation_fields = ['id']

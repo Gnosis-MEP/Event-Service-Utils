@@ -54,15 +54,18 @@ class RedisStreamAndConsumer(BasicStream):
 
 
 class ManyKeyConsumerGroupOnly(BasicStream):
-    def __init__(self, redis_db, keys, max_stream_length=None, block=0, create_cg=True):
-        BasicStream.__init__(self, keys)
+    def __init__(self, redis_db, keys, max_stream_length=None, block=0, create_cg=True, cg_id=None):
+        if cg_id is None:
+            self.cg_id = 'cg-' + '-'.join(keys)
+        self.cg_id = cg_id
+        BasicStream.__init__(self, self.cg_id)
         self.block = block
         self.redis_db = redis_db
         self.input_consumer_group = self._get_many_stream_consumer_group(keys)
         self.max_stream_length = max_stream_length
 
     def _get_many_stream_consumer_group(self, keys):
-        group_name = 'cg-%s' % keys[0]
+        group_name = self.cg_id
         consumer_group = self.redis_db.consumer_group(group_name, keys)
         consumer_group.create()
         consumer_group.set_id(id='$')
@@ -118,7 +121,7 @@ class RedisStreamFactory(StreamFactory):
         self.redis_db = Database(host=host, port=port)
         self.max_stream_length = max_stream_length
 
-    def create(self, key, stype='streamAndConsumer'):
+    def create(self, key, stype='streamAndConsumer', cg_id=None):
         if stype == 'streamAndConsumer':
             return RedisStreamAndConsumer(
                 redis_db=self.redis_db, key=key, max_stream_length=self.max_stream_length, block=self.block)
@@ -127,4 +130,7 @@ class RedisStreamFactory(StreamFactory):
                 redis_db=self.redis_db, key=key, max_stream_length=self.max_stream_length, block=self.block)
         elif stype == 'manyKeyConsumerOnly':
             return ManyKeyConsumerGroupOnly(
-                redis_db=self.redis_db, keys=key, max_stream_length=self.max_stream_length, block=self.block)
+                redis_db=self.redis_db, keys=key,
+                max_stream_length=self.max_stream_length, block=self.block,
+                cg_id=cg_id
+            )
