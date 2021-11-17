@@ -1,12 +1,14 @@
+import re
+
 from .tracer import EVENT_ID_TAG, tags
-from .registry import BaseRegistryService
+from .registry import BaseTracerService
 
 EVENT_TYPE_TAG = 'event-type'
 JSON_MSG_TAG = 'json-msg'
 
 
-class BaseEventDrivenCMDService(BaseRegistryService):
-    def __init__(self, name, service_stream_key, service_cmd_key_list, service_registry_cmd_key,
+class BaseEventDrivenCMDService(BaseTracerService):
+    def __init__(self, name, service_stream_key, service_cmd_key_list, pub_event_list,
                  service_details, stream_factory, logging_level, tracer):
         self.name = name
         self.logging_level = logging_level
@@ -16,12 +18,34 @@ class BaseEventDrivenCMDService(BaseRegistryService):
         self.service_cmd = self.stream_factory.create(
             service_cmd_key_list, stype='manyKeyConsumerOnly', cg_id=f'cg-{self.name}')
         self.logger = self._setup_logging()
-        self.cmd_validation_fields = ['id', 'action']
+        self.cmd_validation_fields = ['id']
         self.data_validation_fields = ['id']
         self.ack_data_stream_events = True
         self.tracer = tracer
         self.service_details = service_details
-        self.service_registry_cmd = self.stream_factory.create(service_registry_cmd_key, stype='streamOnly')
+        self.pub_event_list = pub_event_list
+        self.pub_event_stream_map = {}
+        self.init_publishing_event_stream()
+
+    def init_publishing_event_stream(self):
+        if self.service_details is not None:
+            anounce_service = 'ServiceWorkerAnnounced'
+            assert anounce_service in self.pub_event_list, f'"{anounce_service}" should be present'
+        for event_type in self.pub_event_list:
+            stream = self.stream_factory.create(event_type, stype='streamOnly')
+            event_type_slugfy = re.sub(r'(?<!^)(?=[A-Z])', '_', event_type).lower()
+            attr_name = f'pub_stream_{event_type_slugfy}'
+            setattr(self, attr_name, stream)
+            self.pub_event_stream_map[event_type] = stream
+
+    def publish_event_type_to_stream(self, event_type, new_event_data):
+        pub_stream = self.pub_event_stream_map.get(event_type)
+        if pub_stream is None:
+            self.logger.error(f'No publishing stream defined for event type: {event_type}!')
+            return
+
+        self.logger.info(f'Publishing "{event_type}" entity: {new_event_data}')
+        self.write_event_with_trace(new_event_data, pub_stream)
 
     def process_event_type(self, event_type, event_data, json_msg):
         if not self.event_validation_fields(event_data, self.cmd_validation_fields):
@@ -65,3 +89,15 @@ class BaseEventDrivenCMDService(BaseRegistryService):
             except Exception as e:
                 self.logger.error(f'Error processing {json_msg}:')
                 self.logger.exception(e)
+
+    def annouce_service_worker(self):
+        new_event_data = {
+            'id': self.service_based_random_event_id(),
+            'worker': self.service_details
+        }
+        self.write_event_with_trace(new_event_data, self.pub_stream_service_worker_announced)
+
+    def run(self):
+        super(BaseEventDrivenCMDService, self).run()
+        if self.service_details is not None:
+            self.annouce_service_worker()
