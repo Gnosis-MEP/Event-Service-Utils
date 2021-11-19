@@ -41,8 +41,7 @@ class BaseEventDrivenCMDService(BaseTracerService):
     def publish_event_type_to_stream(self, event_type, new_event_data):
         pub_stream = self.pub_event_stream_map.get(event_type)
         if pub_stream is None:
-            self.logger.error(f'No publishing stream defined for event type: {event_type}!')
-            return
+            raise RuntimeError(f'No publishing stream defined for event type: {event_type}!')
 
         self.logger.info(f'Publishing "{event_type}" entity: {new_event_data}')
         self.write_event_with_trace(new_event_data, pub_stream)
@@ -76,7 +75,7 @@ class BaseEventDrivenCMDService(BaseTracerService):
         )
 
     def process_cmd(self):
-        self.logger.debug(f'Processing CMD from event types: {self.service_cmd_key_list}..')
+        self.logger.debug(f'Processing CMD from event types: {self.service_cmd_key_list}')
 
         stream_event_list = self.service_cmd.read_stream_events_list(count=1)
         for stream_key, event_tuple in stream_event_list:
