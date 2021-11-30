@@ -112,9 +112,9 @@ class BaseService():
                 self.logger.error(f'Error processing {json_msg}:')
                 self.logger.exception(e)
 
-    def run_forever(self, method):
+    def run_forever(self, method, **kwargs):
         while True:
-            method()
+            method(**kwargs)
 
     def run(self):
         self.logger.info(f'starting {self.name}')

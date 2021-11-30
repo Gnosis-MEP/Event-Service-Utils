@@ -3,6 +3,7 @@ import re
 from .tracer import EVENT_ID_TAG, tags
 from .registry import BaseTracerService
 
+CG_SUB_GROUP_TAG = 'cg-subgroup'
 EVENT_TYPE_TAG = 'event-type'
 JSON_MSG_TAG = 'json-msg'
 
@@ -14,9 +15,9 @@ class BaseEventDrivenCMDService(BaseTracerService):
         self.logging_level = logging_level
         self.stream_factory = stream_factory
         self.service_stream = self.stream_factory.create(service_stream_key)
-        self.service_cmd_key_list = service_cmd_key_list
-        self.service_cmd = self.stream_factory.create(
-            service_cmd_key_list, stype='manyKeyConsumerOnly', cg_id=f'cg-{self.name}')
+        self.service_cmd_cg_keys_map = {'default': []}
+        self.service_cmd_cg_stream_map = {}
+        self._setup_cmd_cg_group_streams(service_cmd_key_list)
         self.logger = self._setup_logging()
         self.cmd_validation_fields = ['id']
         self.data_validation_fields = ['id']
@@ -27,13 +28,48 @@ class BaseEventDrivenCMDService(BaseTracerService):
         self.pub_event_stream_map = {}
         self.init_publishing_event_stream()
 
+    def _slugfy(self, value):
+        return re.sub(r'(?<!^)(?=[A-Z])', '_', value).lower()
+
+    def _get_cg_sub_group_id(self, cg_sub_group):
+        base_cg_name = f'cg-{self.name}'
+        cg_sub_group_id = base_cg_name
+        if cg_sub_group is None and cg_sub_group != 'default':
+            cg_sub_group_id = f'{base_cg_name}-{cg_sub_group}'
+        return cg_sub_group_id
+
+    def _get_cg_sub_group_stream_name(self, cg_sub_group):
+        attr_name = 'service_cmd'
+        if cg_sub_group is None and cg_sub_group != 'default':
+            cg_sub_group_append = cg_sub_group
+            attr_name = f'{attr_name}_{cg_sub_group_append}'
+        return attr_name
+
+    def _setup_cmd_cg_group_streams(self, service_cmd_key_list):
+        for key_or_tuple in service_cmd_key_list:
+            service_key = key_or_tuple
+            cg_sub_group = 'default'
+            if not isinstance(key_or_tuple, str):
+                service_key, cg_sub_group = key_or_tuple
+                cg_sub_group = self._slugfy(cg_sub_group)
+
+            cg_key_list = self.service_cmd_cg_keys_map.setdefault(cg_sub_group, [])
+            cg_key_list.append(service_key)
+        for cg_sub_group, cg_key_list in self.service_cmd_cg_keys_map.items():
+            cg_id = self._get_cg_sub_group_id(cg_sub_group)
+            attr_name = self._get_cg_sub_group_stream_name(cg_sub_group)
+            stream = self.stream_factory.create(
+                cg_key_list, stype='manyKeyConsumerOnly', cg_id=cg_id)
+            setattr(self, attr_name, stream)
+            self.service_cmd_cg_stream_map[cg_sub_group] = stream
+
     def init_publishing_event_stream(self):
         if self.service_details is not None:
             anounce_service = 'ServiceWorkerAnnounced'
             assert anounce_service in self.pub_event_list, f'"{anounce_service}" should be present'
         for event_type in self.pub_event_list:
             stream = self.stream_factory.create(event_type, stype='streamOnly')
-            event_type_slugfy = re.sub(r'(?<!^)(?=[A-Z])', '_', event_type).lower()
+            event_type_slugfy = self._slugfy(event_type)
             attr_name = f'pub_stream_{event_type_slugfy}'
             setattr(self, attr_name, stream)
             self.pub_event_stream_map[event_type] = stream
@@ -53,9 +89,10 @@ class BaseEventDrivenCMDService(BaseTracerService):
         self.logger.debug(f'processing event type: "{event_type}" with this args: "{event_data}"')
         return True
 
-    def process_event_type_wrapper(self, event_type, event_data, json_msg):
+    def process_event_type_wrapper(self, cg_sub_group, event_type, event_data, json_msg):
         tracer_tags = {
             tags.SPAN_KIND: tags.SPAN_KIND_CONSUMER,
+            CG_SUB_GROUP_TAG: cg_sub_group,
             EVENT_ID_TAG: event_data['id'],
             EVENT_TYPE_TAG: event_type
         }
@@ -74,16 +111,22 @@ class BaseEventDrivenCMDService(BaseTracerService):
             tracer_tags=tracer_tags
         )
 
-    def process_cmd(self):
-        self.logger.debug(f'Processing CMD from event types: {self.service_cmd_key_list}')
+    def process_cmd(self, cg_sub_group=None):
+        if cg_sub_group is None:
+            cg_sub_group = 'default'
 
-        stream_event_list = self.service_cmd.read_stream_events_list(count=1)
+        cmd_stream = self.service_cmd_cg_stream_map[cg_sub_group]
+        event_types = self.service_cmd_cg_keys_map[cg_sub_group]
+
+        self.logger.debug(f'Processing CMD-[{cg_sub_group}] from event types: {event_types}')
+
+        stream_event_list = cmd_stream.read_stream_events_list(count=1)
         for stream_key, event_tuple in stream_event_list:
             event_type = stream_key.decode('utf-8')
             event_id, json_msg = event_tuple[0]
             try:
                 event_data = self.default_event_deserializer(json_msg)
-                self.process_event_type_wrapper(event_type, event_data, json_msg)
+                self.process_event_type_wrapper(cg_sub_group, event_type, event_data, json_msg)
                 self.log_state()
             except Exception as e:
                 self.logger.error(f'Error processing {json_msg}:')
