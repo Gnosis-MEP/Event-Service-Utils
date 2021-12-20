@@ -34,13 +34,13 @@ class BaseEventDrivenCMDService(BaseTracerService):
     def _get_cg_sub_group_id(self, cg_sub_group):
         base_cg_name = f'cg-{self.name}'
         cg_sub_group_id = base_cg_name
-        if cg_sub_group is None and cg_sub_group != 'default':
+        if cg_sub_group is not None and cg_sub_group != 'default':
             cg_sub_group_id = f'{base_cg_name}-{cg_sub_group}'
         return cg_sub_group_id
 
     def _get_cg_sub_group_stream_name(self, cg_sub_group):
         attr_name = 'service_cmd'
-        if cg_sub_group is None and cg_sub_group != 'default':
+        if cg_sub_group is not None and cg_sub_group != 'default':
             cg_sub_group_append = cg_sub_group
             attr_name = f'{attr_name}_{cg_sub_group_append}'
         return attr_name
