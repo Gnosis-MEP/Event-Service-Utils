@@ -28,6 +28,7 @@ setup(
     include_package_data=True,
     install_requires=requirements,
     zip_safe=False,
+    license='Apache License, Version 2.0',
     test_suite='tests',
     tests_require=test_requirements
 )
