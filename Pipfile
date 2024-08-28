@@ -9,6 +9,7 @@ ipdb = "*"
 pipenv = "*"
 bumpversion = "*"
 flake8 = "*"
+twine = "*"
 
 [packages]
 jaeger-client = "==4.1.0"
